@@ -26,7 +26,7 @@ async function detectDogs() {
         predictions.forEach(prediction => {
             const { class: className, score, bbox } = prediction;
 
-            if (className === 'dog' && score > 0.5) {
+            if (className === 'human' && score > 0.5) {
                 resultElement.textContent = 'Зафиксирована собака!';
 
                 const [x, y, width, height] = bbox;
