@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BLE Money Transfer</title>
+    <title>Bluetooth Money Transfer</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -52,29 +52,23 @@
 </head>
 <body>
     <div class="container">
-        <h1>BLE Money Transfer</h1>
+        <h1>Bluetooth Money Transfer</h1>
         <input type="number" id="amount" placeholder="Введите сумму">
         <button id="sendButton">Отправить</button>
         <button id="receiveButton">Получить</button>
         <p id="status">Статус: Не подключено</p>
     </div>
     <script>
-        let device;
-        let characteristic;
+        let port;
+        let reader;
 
         document.getElementById('sendButton').addEventListener('click', sendData);
         document.getElementById('receiveButton').addEventListener('click', receiveData);
 
         async function connect() {
             try {
-                device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: ['00001234-0000-1000-8000-00805f9b34fb'] }]
-                });
-
-                const server = await device.gatt.connect();
-                const service = await server.getPrimaryService('00001234-0000-1000-8000-00805f9b34fb');
-                characteristic = await service.getCharacteristic('00001235-0000-1000-8000-00805f9b34fb');
-
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 9600 });
                 document.getElementById('status').textContent = 'Статус: Подключено';
             } catch (error) {
                 console.error('Ошибка подключения:', error);
@@ -83,36 +77,29 @@
         }
 
         async function sendData() {
-            if (!device || !characteristic) {
+            if (!port) {
                 await connect();
             }
 
             const amount = document.getElementById('amount').value;
-            const data = new TextEncoder().encode(amount);
-
-            try {
-                await characteristic.writeValue(data);
-                document.getElementById('status').textContent = 'Статус: Данные отправлены';
-            } catch (error) {
-                console.error('Ошибка отправки данных:', error);
-                document.getElementById('status').textContent = 'Статус: Ошибка отправки данных';
-            }
+            const encoder = new TextEncoder();
+            const writer = port.writable.getWriter();
+            await writer.write(encoder.encode(amount + '\n'));
+            writer.releaseLock();
+            document.getElementById('status').textContent = 'Статус: Данные отправлены';
         }
 
         async function receiveData() {
-            if (!device || !characteristic) {
+            if (!port) {
                 await connect();
             }
 
-            try {
-                const value = await characteristic.readValue();
-                const amount = new TextDecoder().decode(value);
-                document.getElementById('amount').value = amount;
-                document.getElementById('status').textContent = 'Статус: Данные получены';
-            } catch (error) {
-                console.error('Ошибка получения данных:', error);
-                document.getElementById('status').textContent = 'Статус: Ошибка получения данных';
-            }
+            reader = port.readable.getReader();
+            const { value, done } = await reader.read();
+            const amount = new TextDecoder().decode(value);
+            document.getElementById('amount').value = amount.trim();
+            document.getElementById('status').textContent = 'Статус: Данные получены';
+            reader.releaseLock();
         }
     </script>
 </body>
