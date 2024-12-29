@@ -1,19 +1,119 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Распознавание собак в реальном времени</title>
-    <link rel="stylesheet" href="style.css">
+    <title>BLE Money Transfer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        input {
+            padding: 10px;
+            margin: 10px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <h1>Распознавание собак в реальном времени</h1>
-    <video id="video" width="640" height="480" autoplay muted></video>
-    <canvas id="canvas" width="640" height="480"></canvas>
-    <p id="result"></p>
+    <div class="container">
+        <h1>BLE Money Transfer</h1>
+        <input type="number" id="amount" placeholder="Введите сумму">
+        <button id="sendButton">Отправить</button>
+        <button id="receiveButton">Получить</button>
+        <p id="status">Статус: Не подключено</p>
+    </div>
+    <script>
+        let device;
+        let characteristic;
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
-    <script src="script.js"></script>
+        document.getElementById('sendButton').addEventListener('click', sendData);
+        document.getElementById('receiveButton').addEventListener('click', receiveData);
+
+        async function connect() {
+            try {
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['00001234-0000-1000-8000-00805f9b34fb'] }]
+                });
+
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService('00001234-0000-1000-8000-00805f9b34fb');
+                characteristic = await service.getCharacteristic('00001235-0000-1000-8000-00805f9b34fb');
+
+                document.getElementById('status').textContent = 'Статус: Подключено';
+            } catch (error) {
+                console.error('Ошибка подключения:', error);
+                document.getElementById('status').textContent = 'Статус: Ошибка подключения';
+            }
+        }
+
+        async function sendData() {
+            if (!device || !characteristic) {
+                await connect();
+            }
+
+            const amount = document.getElementById('amount').value;
+            const data = new TextEncoder().encode(amount);
+
+            try {
+                await characteristic.writeValue(data);
+                document.getElementById('status').textContent = 'Статус: Данные отправлены';
+            } catch (error) {
+                console.error('Ошибка отправки данных:', error);
+                document.getElementById('status').textContent = 'Статус: Ошибка отправки данных';
+            }
+        }
+
+        async function receiveData() {
+            if (!device || !characteristic) {
+                await connect();
+            }
+
+            try {
+                const value = await characteristic.readValue();
+                const amount = new TextDecoder().decode(value);
+                document.getElementById('amount').value = amount;
+                document.getElementById('status').textContent = 'Статус: Данные получены';
+            } catch (error) {
+                console.error('Ошибка получения данных:', error);
+                document.getElementById('status').textContent = 'Статус: Ошибка получения данных';
+            }
+        }
+    </script>
 </body>
 </html>
